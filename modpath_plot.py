@@ -8,12 +8,20 @@ class ModpathPlot:
          May be modified to used with older Modpath versions.
     """
     @staticmethod
-    def pathline_to_polylines(filename, outshapefile):
-        """Create shapefile for pathlines"""
+    def pathline_to_polylines(filename, outshapefile, model_offset=[0.0, 0.0, 0.0]):
+        """Create shapefile for pathlines
+        Args:
+            filename (str): input .pathline file name
+            outshapefile (str): output shapefile name
+            model_offset (list, float): [x_offset, y_offset, rotation angle]
+        """
         # Set up shapefile writer and create empty fields
         w = shapefile.Writer(shapefile.POLYLINE)
         w.field("ID_N")
         w.field("LAY_N")
+        offset_x = model_offset[0]
+        offset_y = model_offset[1]
+        rotation = model_offset[2]/360.0 * 2.0 * math.pi
         # Start processing data
         xs = []
         ys = []
@@ -32,10 +40,14 @@ class ModpathPlot:
                     fields = pt_line.split()
                     id = int(fields[0])
                     t = float(fields[4])
-                    x = float(fields[5])
-                    y = float(fields[6])
+                    x_nonproj = float(fields[5])
+                    y_nonproj = float(fields[6])
                     z = float(fields[7])
                     lay = int(fields[8])
+                    r = math.sqrt((x_nonproj*x_nonproj + y_nonproj*y_nonproj))
+                    theta = math.atan2(y_nonproj, x_nonproj) + rotation
+                    x = r*math.cos(theta) + offset_x
+                    y = r*math.sin(theta) + offset_y
                     if id == id_old:
                         if lay == lay_old:  # If the same id, append to xyzt
                             pt.append([x, y, z, lay])
@@ -158,11 +170,16 @@ class ModpathPlot:
 
 if __name__ == "__main__":
     # User provide file name and total number of layers:
-    filename = "test.pathline"
+    # filename = "test.pathline"
+    filename = "Garvey_30yr_mf.pathline"
     total_layers = 11
     # Plot 2d plots
     ModpathPlot.pathline_to_2dplot(filename, total_layers)
     # Create shapefile
-    ModpathPlot.pathline_to_polylines(filename, "test_polyline.shp")
+    offset_x = 2077435.90287249
+    offset_y = 266470.723511388
+    rotation = -9
+    model_offset = [offset_x, offset_y, rotation]
+    ModpathPlot.pathline_to_polylines(filename, "test_polyline.shp", model_offset)
     # Create shapefile
     # ModpathPlot.pathline_to_points(filename, "test_points.shp")
