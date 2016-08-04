@@ -8,19 +8,19 @@ class ModpathPlot:
          May be modified to used with older Modpath versions.
     """
     @staticmethod
-    def pathline_to_shape(filename, total_layers):
+    def pathline_to_polylines(filename, outshapefile):
         """Create shapefile for pathlines"""
-        # Subplot lay out, I use two columns to layout subplots
-        sub_plots_total = total_layers
-        sub_plots_col = 2
-        sub_plots_row = math.ceil(sub_plots_total / sub_plots_col)
-        # Start processing
+        # Set up shapefile writer and create empty fields
+        w = shapefile.Writer(shapefile.POLYLINE)
+        w.field("ID_N")
+        w.field("LAY_N")
+        # Start processing data
         xs = []
         ys = []
         zs = []
-        xyzt = []
-        id_old = 1
-        w = shapefile.Writer(shapefile.POLYLINE)
+        pt = []
+        id_old = 0  # do not have particle 0
+        lay_old = 0 # do not have layer 0
         with open(filename, "r") as f:
             # Skip first three header lines
             for i in range(3):
@@ -31,21 +31,70 @@ class ModpathPlot:
                 if pt_line.replace(' ', '').replace('\t', '').replace('\n', '') != '':
                     fields = pt_line.split()
                     id = int(fields[0])
-                    t = float(fields[3])
+                    t = float(fields[4])
                     x = float(fields[5])
                     y = float(fields[6])
                     z = float(fields[7])
                     lay = int(fields[8])
-                    if id == id_old:  # If the same id, append to xyzt
-                        xyzt.append([x, y, z, t])
+                    if id == id_old:
+                        if lay == lay_old:  # If the same id, append to xyzt
+                            pt.append([x, y, z, lay])
+                        else:
+                            # w.poly(parts=[pt])  # Write the geometry, polylines
+                            w.line(parts=[pt])
+                            w.record(id_old, lay_old)   # write the attributes
+                            pt = []
+                            pt.append([x, y, z, lay])
+                            id_old = id  # The new particle
+                            lay_old = lay
                     else:  # if not, plot the previous list xyzt, start new list
+                        if id_old != 0:  # Start from id_old = 1
+                            # w.poly(parts=[pt])
+                            w.line(parts = [pt])
+                            w.record(id_old, lay_old)
+                        pt = []
+                        pt.append([x, y, z, lay])
                         id_old = id  # The new particle
-                        sub_id = lay
-                        w.poly(parts = [xyzt])
-                        xyzt = []
-                        xyzt.append([x, y, z, t])
+                        lay_old = lay
                 pt_line = f.readline()
-        w.save("test_poly")  # save shapefile
+        w.save(outshapefile)  # save shapefile
+
+
+    @staticmethod
+    def pathline_to_points(filename, outshapefile):
+        """Create all points shapefile for pathlines"""
+        # Set up shapefile writer and create empty fields
+        w = shapefile.Writer(shapefile.POINT)
+        w.field("X")
+        w.field("Y")
+        w.field("Z")
+        w.field("T")
+        # Start processing data
+        xs = []
+        ys = []
+        zs = []
+        pt = []
+        id_old = 0  # do not have particle 0
+        lay_old = 0 # do not have layer 0
+        with open(filename, "r") as f:
+            # Skip first three header lines
+            for i in range(3):
+                line_skip = f.readline()
+            # Read the next line
+            pt_line = f.readline()
+            while pt_line != '':  # Keep reading until the end
+                if pt_line.replace(' ', '').replace('\t', '').replace('\n', '') != '':
+                    fields = pt_line.split()
+                    id = int(fields[0])
+                    t = float(fields[4])
+                    x = float(fields[5])
+                    y = float(fields[6])
+                    z = float(fields[7])
+                    lay = int(fields[8])
+                    w.point(x, y, z, lay)
+                    w.record(x, y, z, lay)
+                pt_line = f.readline()
+        w.save(outshapefile)  # save shapefile
 
     @staticmethod
     def pathline_to_2dplot(filename, total_layers):
@@ -90,8 +139,8 @@ class ModpathPlot:
                         plt.plot(xs, ys, "r")
                         plt.plot(x, y, "b.")
                         plt.title("Layer"+str(lay))
-                        plt.xlim(0.0, xmax)
-                        plt.ylim(0.0, ymax)
+                        plt.xlim(0.0, 1.1*xmax)
+                        plt.ylim(0.0, 1.1*ymax)
                         plt.grid(True)
                         xs = []
                         xs.append(x)
@@ -114,4 +163,6 @@ if __name__ == "__main__":
     # Plot 2d plots
     ModpathPlot.pathline_to_2dplot(filename, total_layers)
     # Create shapefile
-    ModpathPlot.pathline_to_shape(filename, total_layers)
+    ModpathPlot.pathline_to_polylines(filename, "test_polyline.shp")
+    # Create shapefile
+    # ModpathPlot.pathline_to_points(filename, "test_points.shp")
