@@ -19,6 +19,7 @@ class ModpathPlot:
         w = shapefile.Writer(shapefile.POLYLINE)
         w.field("ID_N")
         w.field("LAY_N")
+        # Prepare model offset for shapefile creation
         offset_x = model_offset[0]
         offset_y = model_offset[1]
         rotation = model_offset[2]/360.0 * 2.0 * math.pi
@@ -169,7 +170,11 @@ class ModpathPlot:
         fig.savefig(fignm)
 
 if __name__ == "__main__":
-    # User provide file name and total number of layers:
+    # User must provide the following:
+    # filename: file name
+    # total_layers: total number of layers:
+    # offset_x, offset_y, rotation: model offset and rotation, if no input default 0, 0, 0
+
     # filename = "test.pathline"
     filename = "Garvey_30yr_mf.pathline"
     total_layers = 11
